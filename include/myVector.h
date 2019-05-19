@@ -11,19 +11,20 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
+#include <stdint.h>
 
-typedef int Rank;
+typedef int64_t Rank;
 const int DEFAULT_CAPACITY = 10;
 
 template <typename T>
 class myVector{
 private:
     Rank _size;
-    int _capacity;
+    Rank _capacity;
     T* _elem = nullptr;
 
 protected:
-    void copy_from(T* A, int lo, int hi);     //
+    void copy_from(T* A, Rank lo, Rank hi);     //
     void expand();      //
     void shrink();      //
     void bubbleSort(Rank lo = 0, Rank hi = -1);      //bubble sort from lo to hi
@@ -35,7 +36,7 @@ protected:
 
 public:
     myVector(int c = DEFAULT_CAPACITY): _size(0), _elem(new T[c]), _capacity(c) {}
-    myVector(T* A, Rank lo, Rank hi) { copy_from(A, lo, hi); }
+    myVector(T* A, Rank lo, Rank hi): _capacity(DEFAULT_CAPACITY), _size(0) { copy_from(A, lo, hi); }
     myVector(T* A, Rank n) { copy_from(A, 0, n); }
     myVector(const myVector<T>& V, Rank hi, Rank lo = 0) { copy_from(V._elem, lo, hi); }
     myVector(const myVector<T>& V) { copy_from(V._elem, 0, V._size); }
@@ -70,7 +71,7 @@ public:
 
 // protected:
 template <typename T>
-void myVector<T>::copy_from(T* A, int lo, int hi)
+void myVector<T>::copy_from(T* A, Rank lo, Rank hi)
 {
     if(_capacity < 2*(hi - lo))
         _capacity = 2 * (hi - lo);
@@ -113,8 +114,8 @@ void myVector<T>::bubbleSort(Rank lo, Rank hi)
     hi = (hi == -1) ? _size : hi;
     if (hi < 0 || lo < 0 || hi < lo)
         throw std::invalid_argument("bad argument");
-    for (int i = lo; i < hi; ++i)
-        for (int j = hi-1; j > lo; --j)
+    for (Rank i = lo; i < hi; ++i)
+        for (Rank j = hi-1; j > lo; --j)
             if (_elem[j] < _elem[j-1])
                 std::swap(_elem[j], _elem[j-1]);
 }
@@ -122,6 +123,8 @@ void myVector<T>::bubbleSort(Rank lo, Rank hi)
 template <typename T>
 void myVector<T>::merge(Rank lo, Rank mi, Rank hi)
 {
+	if (hi - lo <= 1)
+		return;
     Rank r1 = lo, r2 = mi;
     T* temp = new T[hi - lo];
     Rank now = 0;
@@ -135,6 +138,8 @@ void myVector<T>::merge(Rank lo, Rank mi, Rank hi)
         temp[now++] = _elem[r2++];
     for (int i = 0; i < hi - lo; ++i)
         _elem[lo + i] = temp[i];
+
+	delete[] temp;
 }
 
 template <typename T>
@@ -152,23 +157,27 @@ void myVector<T>::mergeSort(Rank lo, Rank hi)
 template <typename T>
 void myVector<T>::quickSort(Rank lo, Rank hi)
 {
-    if (hi - lo < 2)
+    if (hi - lo < 1)
         return;
-    Rank lowRank = lo, highRank = hi;
+    Rank lowRank = lo, highRank = hi - 2;
     T pivot = _elem[hi - 1];
-    for (; lowRank < highRank; ++lowRank) {
-        if (_elem[lowRank] > pivot)
-            for (; highRank > lowRank; --highRank) {
-                if (_elem[highRank] <= pivot){
-                    std::swap(_elem[highRank], _elem[lowRank]);
-                    break;
-                }
-            }
-    }
-    Rank md = static_cast<Rank>((lo + hi) >> 1);
-    quickSort(lo, md);
-    quickSort(md, hi);
+	while (lowRank < highRank) {
+		while (_elem[lowRank] < pivot && lowRank < highRank)
+			lowRank++;
+		while (_elem[highRank] >= pivot && lowRank < highRank)
+			highRank--;
+		std::swap(_elem[lowRank], _elem[highRank]);
+	}
+	if (_elem[lowRank] >= _elem[hi - 1])
+		std::swap(_elem[lowRank], _elem[hi - 1]);
+	else
+		lowRank++;
+    //Rank md = static_cast<Rank>((lo + hi) >> 1);
+	if (lowRank)
+		quickSort(lo, lowRank);
+    quickSort(lowRank+1, hi);
 }
+
 // public:
 template <typename T>
 myVector<T>::myVector(std::istream& ifs)
@@ -310,8 +319,10 @@ void myVector<T>::sort(Rank lo, Rank hi, int method)
         break;
     case 1:
         mergeSort(lo, hi);
+		break;
     case 2:
         quickSort(lo, hi);
+		break;
     }
 }
 
@@ -338,6 +349,7 @@ void myVector<T>::savetxt(std::ostream& ofs)
     for (Rank i =0; i < _size; ++i)
         ofs << _elem[i] << std::endl;
 }
+
 template <typename T>
 void myVector<T>::traverse(void (*visit)(T&))
 {
